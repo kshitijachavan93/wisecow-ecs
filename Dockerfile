@@ -11,3 +11,7 @@ COPY wisecow.sh /usr/local/bin/wisecow.sh
 RUN chmod +x /usr/local/bin/wisecow.sh
 
 CMD ["/usr/local/bin/wisecow.sh"]
+
+
+
+
