@@ -12,7 +12,8 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                git credentialsId: 'github-creds', url: 'https://github.com/sumitgaikwad08/wisecow.git'
+                // í ½í´¥ Force Jenkins to use 'main' branch instead of default 'master'
+                git branch: 'main', credentialsId: 'github-creds', url: 'https://github.com/sumitgaikwad08/wisecow.git'
             }
         }
 
