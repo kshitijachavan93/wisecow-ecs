@@ -39,7 +39,7 @@ jobs:
       - name: Trivy Image Scan
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
-          ./trivy image --skip-update -f json -o trivy-report.json $ECR_REPOSITORY:$IMAGE_TAG || echo "Trivy scan completed with vulnerabilities, report generated."
+          ./trivy image --skip-update -f json -o trivy-report.json $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG || echo "Trivy scan completed with vulnerabilities."
 
       - name: Upload Trivy Report to S3
         run: |
