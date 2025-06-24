@@ -46,8 +46,8 @@ jobs:
 
       - name: Trivy Scan ECR Image
         run: |
-         echo "🛡 Scanning $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-         trivy image --timeout 5m --skip-update -f json -o trivy-report.json $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG || echo "Trivy scan completed with vulnerabilities or warnings."
+          echo "🛡 Scanning $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          ./bin/trivy image --timeout 5m --skip-update -f json -o trivy-report.json $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG || echo "Trivy scan completed with vulnerabilities or warnings."
 
       - name: Upload Trivy Report to S3
         if: success()
