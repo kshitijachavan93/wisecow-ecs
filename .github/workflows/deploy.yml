@@ -3,7 +3,7 @@ name: Deploy to ECS Fargate
 on:
   push:
     branches:
-      - main
+      - master
 
 env:
   AWS_REGION: eu-north-1
@@ -45,13 +45,6 @@ jobs:
     - name: Upload Trivy Report to S3
       run: |
         aws s3 cp trivy-report.json s3://$S3_BUCKET/trivy-report-${IMAGE_TAG}.json
-
-    - name: Send SNS Notification
-      run: |
-        aws sns publish \
-          --topic-arn $SNS_TOPIC_ARN \
-          --subject "Trivy Scan Report for $IMAGE_TAG" \
-          --message "Trivy scan for image $IMAGE_TAG completed. Report uploaded to S3: s3://$S3_BUCKET/trivy-report-${IMAGE_TAG}.json"
 
     - name: Push to ECR
       run: |
