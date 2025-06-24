@@ -48,15 +48,7 @@ jobs:
         run: |
           ./trivy image --timeout 5m --skip-update -f json -o trivy-report.json $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG || echo "Trivy scan completed with vulnerabilities or warnings."
 
-      - name: Upload Trivy Report to S3
-        run: |
-          if [ -f trivy-report.json ]; then
-            echo "✅ Trivy report found, uploading..."
-            aws s3 cp trivy-report.json s3://$S3_BUCKET/trivy-report-${IMAGE_TAG}.json
-          else
-            echo "❌ trivy-report.json not found. Skipping upload."
-            # Optional: don't exit, continue with deploy
-          fi
+      
 
 
       - name: Deploy to ECS
