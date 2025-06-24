@@ -29,3 +29,4 @@ Deploy the wisecow application as a k8s app
 4. <!-- Trigger GitHub Actions -->
 5. -------
 6. <----->
+7. ------------------
