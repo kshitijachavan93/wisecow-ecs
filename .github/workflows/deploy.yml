@@ -36,18 +36,23 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
 
-      - name: Trivy Image Scan
+      - name: Push to ECR
+        run: |
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Install Trivy and Scan Image from ECR
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
           ./trivy image --skip-update -f json -o trivy-report.json $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG || echo "Trivy scan completed with vulnerabilities."
 
       - name: Upload Trivy Report to S3
         run: |
-          aws s3 cp trivy-report.json s3://$S3_BUCKET/trivy-report-${IMAGE_TAG}.json
-
-      - name: Push to ECR
-        run: |
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          if [ -f trivy-report.json ]; then
+            aws s3 cp trivy-report.json s3://$S3_BUCKET/trivy-report-${IMAGE_TAG}.json
+          else
+            echo "❌ trivy-report.json not found."
+            exit 1
+          fi
 
       - name: Deploy to ECS
         run: |
