@@ -1,0 +1,22 @@
+{
+  "family": "wisecow-task",
+  "executionRoleArn": "arn:aws:iam::486991249421:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "containerDefinitions": [
+    {
+      "name": "wisecow",
+      "image": "486991249421.dkr.ecr.eu-north-1.amazonaws.com/wisecow:<IMAGE_TAG>",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 4499,
+          "hostPort": 4499,
+          "protocol": "tcp"
+        }
+      ]
+    }
+  ],
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512"
+}
