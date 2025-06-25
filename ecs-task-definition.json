@@ -4,7 +4,7 @@
   "networkMode": "awsvpc",
   "containerDefinitions": [
     {
-      "name": "wisecow",
+      "name": "wisecow-container",
       "image": "486991249421.dkr.ecr.eu-north-1.amazonaws.com/wisecow:<IMAGE_TAG>",
       "essential": true,
       "portMappings": [
