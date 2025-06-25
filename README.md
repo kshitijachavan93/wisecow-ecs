@@ -31,3 +31,4 @@ Deploy the wisecow application as a k8s app
 6. <----->
 7. ------------------
 # Trigger build
+#Trigger
