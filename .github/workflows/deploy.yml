@@ -16,10 +16,9 @@ jobs:
   build-scan-approve-deploy:
     runs-on: ubuntu-latest
     environment:
-      name: production  
+      name: production  # Triggers GitHub Environment approval
 
     steps:
-
       - name: Checkout Code
         uses: actions/checkout@v3
 
@@ -69,11 +68,25 @@ jobs:
         run: |
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
+      - name: Register New Task Definition
+        id: register-task
+        run: |
+          sed "s|<IMAGE_TAG>|${{ env.IMAGE_TAG }}|g" ecs-task-definition.json > new-task-def.json
+          aws ecs register-task-definition --cli-input-json file://new-task-def.json
+
+      - name: Get New Task Definition Revision
+        id: get-task-def
+        run: |
+          NEW_REVISION=$(aws ecs describe-task-definition \
+            --task-definition wisecow-task \
+            --query 'taskDefinition.revision' \
+            --output text)
+          echo "revision=$NEW_REVISION" >> $GITHUB_OUTPUT
+
       - name: Deploy to ECS
         run: |
           aws ecs update-service \
             --cluster wisecow-cluster \
             --service wisecow-service \
-            --force-new-deployment \
+            --task-definition wisecow-task:${{ steps.get-task-def.outputs.revision }} \
             --region $AWS_REGION
-
