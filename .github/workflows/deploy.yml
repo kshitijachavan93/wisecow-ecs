@@ -1,4 +1,5 @@
 name: Deploy to ECS Fargate
+
 on:
   push:
     branches: [master]
@@ -13,12 +14,14 @@ env:
 jobs:
   build-scan-approve-deploy:
     runs-on: ubuntu-latest
-    environment: production
+    environment:
+      name: production  # 👈 triggers approval if required reviewers are set
 
     steps:
       - uses: actions/checkout@v3
 
-      - uses: aws-actions/configure-aws-credentials@v3
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -47,28 +50,35 @@ jobs:
 
       - name: Upload Trivy Report to S3
         run: |
-           aws s3 cp trivy-report.json s3://$S3_BUCKET/trivy-report-${IMAGE_TAG}.json
+          aws s3 cp trivy-report.json s3://$S3_BUCKET/trivy-report-${IMAGE_TAG}.json
 
       - name: Log in to Amazon ECR
         run: |
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
-
+          aws ecr get-login-password --region $AWS_REGION | \
+          docker login --username AWS --password-stdin $ECR_REGISTRY
 
       - name: Push image to ECR
         run: docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      - name: Register new task definition
-        id: register
+      - name: Register New Task Definition
+        id: register-task
         run: |
-          sed "s|<IMAGE_TAG>|${{ env.IMAGE_TAG }}|g" ecs-task-definition.json \
-            > new-task-def.json
+          sed "s|<IMAGE_TAG>|${{ env.IMAGE_TAG }}|g" ecs-task-definition.json > new-task-def.json
           aws ecs register-task-definition --cli-input-json file://new-task-def.json
 
-      - name: Deploy updated service
+      - name: Get New Task Definition Revision
+        id: get-task-def
+        run: |
+          NEW_REVISION=$(aws ecs describe-task-definition \
+            --task-definition wisecow-task \
+            --query 'taskDefinition.revision' \
+            --output text)
+          echo "revision=$NEW_REVISION" >> $GITHUB_OUTPUT
+
+      - name: Deploy to ECS
         run: |
           aws ecs update-service \
             --cluster wisecow-cluster \
             --service wisecow-service \
-            --task-definition wisecow-task:${{ env.IMAGE_TAG }} \
-            --force-new-deployment \
+            --task-definition wisecow-task:${{ steps.get-task-def.outputs.revision }} \
             --region $AWS_REGION
