@@ -1,92 +1,73 @@
 name: Deploy to ECS Fargate
-
 on:
   push:
-    branches:
-      - master
+    branches: [master]
 
 env:
   AWS_REGION: eu-north-1
-  ECR_REPOSITORY: wisecow
   ECR_REGISTRY: 486991249421.dkr.ecr.eu-north-1.amazonaws.com
+  ECR_REPOSITORY: wisecow
   IMAGE_TAG: ${{ github.run_number }}
   S3_BUCKET: wisecow-trivy-reports
 
 jobs:
   build-scan-approve-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: production  # Triggers GitHub Environment approval
+    environment: production
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3
+      - uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Cache Trivy Binary
-        id: cache-trivy
+      - name: Cache Trivy binary
+        id: cache
         uses: actions/cache@v3
         with:
           path: trivy
           key: trivy-cache-${{ runner.os }}
 
-      - name: Install Trivy (if not cached)
-        if: steps.cache-trivy.outputs.cache-hit != 'true'
+      - name: Install Trivy if not cached
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
-          mkdir -p trivy
-          mv ./bin/trivy trivy/trivy
+          mkdir -p trivy && mv ./bin/trivy trivy/
 
       - name: Build Docker Image
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        run: docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
 
       - name: Trivy Scan Docker Image
         run: |
-          trivy/trivy image \
-            --timeout 5m \
-            --format json \
-            -o trivy-report.json \
-            $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          trivy/trivy image --timeout 5m --format json \
+            -o trivy-report.json $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      - name: Upload Trivy Report to S3
-        run: |
-          aws s3 cp trivy-report.json s3://$S3_BUCKET/trivy-report-${IMAGE_TAG}.json
+      - name: Upload Trivy report to S3
+        run: aws s3 cp trivy-report.json \
+          s3://$S3_BUCKET/trivy-report-${IMAGE_TAG}.json
 
-      - name: Log in to Amazon ECR
-        run: |
-          aws ecr get-login-password --region $AWS_REGION | \
-          docker login --username AWS --password-stdin $ECR_REGISTRY
+      - name: Log in to ECR
+        run: aws ecr get-login-password --region $AWS_REGION \
+            | docker login --username AWS --password-stdin $ECR_REGISTRY
 
-      - name: Push to ECR
-        run: |
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      - name: Push image to ECR
+        run: docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      - name: Register New Task Definition
-        id: register-task
+      - name: Register new task definition
+        id: register
         run: |
-          sed "s|<IMAGE_TAG>|${{ env.IMAGE_TAG }}|g" ecs-task-definition.json > new-task-def.json
+          sed "s|<IMAGE_TAG>|${{ env.IMAGE_TAG }}|g" ecs-task-definition.json \
+            > new-task-def.json
           aws ecs register-task-definition --cli-input-json file://new-task-def.json
 
-      - name: Get New Task Definition Revision
-        id: get-task-def
-        run: |
-          NEW_REVISION=$(aws ecs describe-task-definition \
-            --task-definition wisecow-task \
-            --query 'taskDefinition.revision' \
-            --output text)
-          echo "revision=$NEW_REVISION" >> $GITHUB_OUTPUT
-
-      - name: Deploy to ECS
+      - name: Deploy updated service
         run: |
           aws ecs update-service \
             --cluster wisecow-cluster \
             --service wisecow-service \
-            --task-definition wisecow-task:${{ steps.get-task-def.outputs.revision }} \
+            --task-definition wisecow-task:${{ env.IMAGE_TAG }} \
+            --force-new-deployment \
             --region $AWS_REGION
