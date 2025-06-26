@@ -78,7 +78,7 @@ jobs:
       - name: Deploy to ECS
         run: |
           aws ecs update-service \
-            --cluster wisecow-cluster \
-            --service wisecow-service \
-            --task-definition wisecow-task:${{ steps.get-task-def.outputs.revision }} \
-            --region $AWS_REGION
+          --cluster wisecow-cluster \
+          --service wisecow-service \
+          --task-definition wisecow-task:${{ steps.get-task-def.outputs.revision }} \
+          --region $AWS_REGION
